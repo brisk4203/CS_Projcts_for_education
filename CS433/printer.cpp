@@ -9,41 +9,101 @@
 
 //===========================================================
 #include <cmath>
+#include <cstdlib>
 #include "printer.h"
 
 //CTOR
 //--------------------------------------------------
 PrintQ::PrintQ()
 {
-	count = 0;
-	for(int i = 0; i < MAX; ++i)	//initialize all values in queue
-		queue[i] = 0;
+	count = rear = 0;
+	for(int i = 0; i < MAX; ++i){	//initialize all values in queue
+		queue[i].p_lvl = 0;
+		queue[i].id = 0;
+	}
+	for(int i = 0; i < MEM_MAX; ++i){	//initialize all memory locations in table
+		table[i].ID = table[i].priority = 0;
+		table[i].state = "NULL";
+	}
+}
+//--------------------------------------------------
+
+void PrintQ::testRun1()
+{
+	addToQueue(5);
+	addToQueue(1);
+	addToQueue(8);
+	addToQueue(11);
+	
+	displayQueue();
+	printJob();
+	displayQueue();
+	printJob();
+	displayQueue();
+	
+	addToQueue(3);
+	addToQueue(7);
+	addToQueue(2);
+	addToQueue(12);
+	addToQueue(9);
+	
+	while(count != 0){
+		printJob();
+		displayQueue();
+	}
+}
+//--------------------------------------------------
+void PrintQ::testRun2()
+{
+	//srand(time(NULL));
+	
+	int j, p;
+	for(int i = 0; i < 10; ++i){	//adds ten random jobs to queue from table
+		j = rand() % rear + 1;
+		if((table[i-1].state != "NULL") && (table[i-1].state != "READY")){
+			p = rand() % 50 + 1;
+			addToQueue(i, p);
+		}
+		else{
+			i--;
+		}
+	}
 }
 //--------------------------------------------------
 //Purpose: To add an element to the queue.
 //Param: type el_t given from user.
 //Modified: 120113
-void PrintQ::insert(el_t x)
+void PrintQ::insert()
 {
+	/*
 	if(x <= 0){		//when priority passed is invalid
 		cout << "***ERROR***: '" << x << "' is an invalid priority." << endl;
 		return;
-	}
+	}*/
 	
-	if(count == 0){		//when queue empty insert at front
-		queue[0] = x;
-		count++;
-		cout << "Job inserted."<< endl;
-	}
-	else if(count == MAX){
-		cout << "***ERROR***: Unable to add job, queue is full." << endl;
+	if(rear == MEM_MAX)
+		rear = 0;
+	
+	table[rear].ID = 1 + rear;
+	table[rear].priority = 50;
+	table[rear].state = "NEW";
+	rear++;
+}
+//--------------------------------------------------
+void PrintQ::addToQueue(int id, int p)
+{
+	if(count == MAX){
+		table[id-1].state = "WAITING";
+		return;
 	}
 	else{		//otherwise find next open slot
 		for(int i = 0; i < MAX;){	//loops until end of queue
-			if(queue[i] > 0)	//when slot has an element increment i
+			if(queue[i].p_lvl > 0)	//when slot has an element increment i
 				i++;
 			else{		//otherwise store element in this index
-				queue[i] = x;
+				queue[i].id = id;
+				queue[i].p_lvl = p;
+				table[id-1].state = "READY";
 				count++;
 				cout << "Job inserted." << endl;
 				reheapify(i);		//resorts the tree
@@ -75,53 +135,63 @@ void PrintQ::trickleDown()
 	if(count <= 0)		//when queue is empty
 		return;
 		
-	el_t temp;		//holds elements
+	el_t temp;		//holds pid elements
 	int left, right;	//holds indexes 
 	int j = getLast();	//hold the bottom, right most index
-	temp = queue[j];
-	queue[j] = 0;
-	queue[0] = temp;
+	temp = queue[j].id;
+	queue[j].p_lvl = 0;
+	queue[j].id = 0;
+	queue[0].id = temp;
+	queue[0].p_lvl = table[temp-1].priority;
 	
 	for(int i = 0; i < MAX;){	//loop until end of queue
 		left = i+(i+1);		//sets left child
 		right = i+(i+2);	//sets right child
-		if((queue[left] == 0) && (queue[right] == 0))	//when parent is a leaf
+		if((queue[left].p_lvl == 0) && (queue[right].p_lvl == 0))	//when parent is a leaf
 			return;
-		else if((queue[left] == 0) && (queue[right] != 0)){	//when parent only has right child
-			if(queue[right] < queue[i]){	//and that child is less than the parent
-				temp = queue[right];
-				queue[right] = queue[i];
-				queue[i] = temp;
+		else if((queue[left].p_lvl == 0) && (queue[right].p_lvl != 0)){	//when parent only has right child
+			if(queue[right].p_lvl < queue[i].p_lvl){	//and that child is less than the parent
+				temp = queue[right].id;
+				queue[right].p_lvl = queue[i].p_lvl;
+				queue[right].id = queue[i].id;
+				queue[i].id = temp;
+				queue[i].p_lvl = table[temp-1].priority;
 				i = right;		//moves parent index to child
 			}
 			else
 				return;
 		}
-		else if((queue[right] == 0) && (queue[left] != 0)){	//when parent only has a left child
-			if(queue[left] < queue[i]){		//and that child is less than the parent
-				temp = queue[left];
-				queue[left] = queue[i];
-				queue[i] = temp;
+		else if((queue[right].p_lvl == 0) && (queue[left].p_lvl != 0)){	//when parent only has a left child
+			if(queue[left].p_lvl < queue[i].p_lvl){		//and that child is less than the parent
+				temp = queue[left].id;
+				queue[left].p_lvl = queue[i].p_lvl;
+				queue[left].id = queue[i].id;
+				queue[i].id = temp;
+				queue[i].p_lvl = table[temp-1].priority;
 				i = left;		//moves parent index to child
 			}
 			else
 				return;
 		}
-		else if(queue[right] <= queue[left]){	//when right child is smaller
-			if(queue[right] < queue[i]){		//and is smaller than parent
-				temp = queue[right];
-				queue[right] = queue[i];
-				queue[i] = temp;
+		else if(queue[right].p_lvl <= queue[left].p_lvl){	//when right child is smaller
+			if(queue[right].p_lvl < queue[i].p_lvl){		//and is smaller than parent
+				temp = queue[right].id;
+				queue[right].p_lvl = queue[i].p_lvl;
+				queue[right].id = queue[i].id;
+				queue[i].id = temp;
+				queue[i].p_lvl = table[temp-1].priority;
 				i = right;		//moves parent to index of child
 			}
 			else
 				return;
 		}
-		else if(queue[left] <= queue[right]){ //when left child is smaller
-			if(queue[left] < queue[i]){		//and is smaller than parent
-				temp = queue[left];
-				queue[left] = queue[i];
-				queue[i] = temp;
+		else if(queue[left].p_lvl <= queue[right].p_lvl){ //when left child is smaller
+			if(queue[left].p_lvl < queue[i].p_lvl){		//and is smaller than parent
+				temp = queue[left].id;
+				queue[left].p_lvl = queue[i].p_lvl;
+				queue[left].id = queue[i].id;
+				queue[i].id = temp;
+				queue[i].p_lvl = table[temp-1].priority;
 				i = left;		//moves parent to index of child
 			}
 			else
@@ -138,12 +208,14 @@ void PrintQ::trickleUp(int index)
 	el_t temp;		//holds elements
 	for(int i = index; i >= 0; index=i){	//loop until we reach the root
 		i = getParent(index);		//gets the parent index for a child
-		if(queue[i] <= queue[index])	//when parent is smaller than child
+		if(queue[i].p_lvl <= queue[index].p_lvl)	//when parent is smaller than child
 			return;
 		else{		//otherwise switch child with parent and continue
-			temp = queue[i];
-			queue[i] = queue[index];
-			queue[index] = temp;
+			temp = queue[i].id;
+			queue[i].id = queue[index].id;
+			queue[i].p_lvl = queue[index].p_lvl;
+			queue[index].id = temp;
+			queue[index].p_lvl = table[temp-1].priority;
 		}
 	}
 }
@@ -168,7 +240,7 @@ int PrintQ::getParent(int i)
 int PrintQ::getLast()
 {
 	int i = MAX - 1;	//starts at rear of queue
-	while(queue[i] == 0)	//loops while slots are empty
+	while(queue[i].p_lvl == 0)	//loops while slots are empty
 		i--;
 		
 	if(i <= 0)		//if no element was found, queue is empty
@@ -186,8 +258,10 @@ void PrintQ::printJob()
 		return;
 	}
 	else{		//otherwise print first job
-		cout << "Job printed!" << "\tPriority level: " << queue[0] << endl;	
-		queue[0] = 0;	//clears first job from queue
+		cout << "Job printed!" << "\tPriority level: " << queue[0].p_lvl << endl;
+		table[(queue[0].id)-1].state = "TERMINATED";
+		queue[0].p_lvl = 0;	//clears first job from queue
+		queue[0].id = 0;
 		cout << "Jobs left: " << --count << endl;
 		reheapify(0);	//resorts the heap
 	}
@@ -203,7 +277,7 @@ void PrintQ::displayQueue()
 	}
     cout << "\n[";
     for(int i = 0; i < count; ++i){		//displays only up to number of jobs not entire queue
-		cout << queue[i];
+		cout << "(ID:" << queue[i].id << ",Lvl:" << queue[i].p_lvl << ")";
 		if(i != count - 1)	//when not at last element
 			cout << ", ";
 	}

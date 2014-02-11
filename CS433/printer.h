@@ -14,6 +14,7 @@ using namespace std;
 
 typedef int el_t;	//type define for elements
 const int MAX = 25;		//queue size
+const int MEM_MAX = 100; //number of jobs that can be held in memory at any given time
 
 struct PCBtable
 {
@@ -32,8 +33,9 @@ class PrintQ
 {
 	private:
 		ReadyQueue queue[MAX];	//heap ready queue
-		PCBtable table;		//Process control block table
+		PCBtable table[MEM_MAX];	//Process control block table
 		int count;		//counter for jobs in queue
+		int rear;		//hold rear index of memory used.
 		
 		//Purpose: To take the bottom, right most element and move to top then sort downward.
 		//How To Call: Only reheapify() will call this.
@@ -55,13 +57,18 @@ class PrintQ
 		//How To Call: client cannot access this.
 		int getLast();
 		
+		//Purpose: To age the priority levels of our ready queue so low priority jobs have a chance to print.
+		//How To Call: Program automatically does this after printing a job.
+		void ageing();
+		
+		
 	public:	
 		PrintQ();	//CTOR
 		~PrintQ() {};	//DTOR
 	
 		//Purpose: To insert an element into the queue given by client.
-		//How To Call: Pass a queue element from client.
-		void insert(el_t);
+		//How To Call: Pass a priority lvl.
+		void insert();
 		
 		//Purpose: To remove the first job in the queue and show it on the screen.
 		//How To Call: client calls to pop off first element.
@@ -70,6 +77,12 @@ class PrintQ
 		//Purpose: To display the remaining jobs in the queue
 		//How To Call: Client can call at any time.
 		void displayQueue();		
+		/*
+		void testRun1();
+		
+		void testRun2();
+		*/
+		void addToQueue(int, int);
 };
 
 #endif
